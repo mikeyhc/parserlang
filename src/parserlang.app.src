@@ -1,0 +1,14 @@
+{application, parserlang,
+ [
+  {description, "An Erlang parserlang library"},
+  {vsn, "1"},
+  {modules, [
+             parserlang
+            ]},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
