@@ -5,12 +5,53 @@
 %% author: mikeyhc@atmosia.net
 
 -module(parserlang).
--export([% parser combinators
+-export([% generic parsers
+         case_char/2, case_string/2,
+
+         % parser combinators
          many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
          until/2,
 
          % type construction
          bin_join/2, bin_concat/1]).
+
+%% converts an uppercase character to its lowercase version, if
+%% it is not an uppercase character no change is performed
+to_lower(C) when C >= 65 andalso C =< 90 -> C + 32;
+to_lower(C) -> C.
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%%% Generic Parsers %%%
+%%%%%%%%%%%%%%%%%%%%%%%
+
+%% case insensitive character match
+case_char(C, S) when is_binary(S) andalso is_integer(C) ->
+    <<H, T/binary>> = S,
+    case to_lower(H) == to_lower(C) of
+        true -> {H,T};
+        false -> throw({parse_error, expected, C})
+    end;
+case_char(C, _) when not is_integer(C) -> error({badarg, C});
+case_char(_, S) -> error({badarg, S}).
+
+%% case insensitive string match
+case_string(<<>>, L) when is_binary(L) -> {<<>>, L};
+case_string(S, <<>>) when is_binary(S) ->
+    throw({parse_error, expected, S});
+case_string(S, L) when is_binary(L) andalso is_binary(S) ->
+    <<SH, ST/binary>> = S,
+    try
+        {LH, LT} = case_char(SH, L),
+        {RH, RT} = case_string(ST, LT),
+        {<<LH,RH/binary>>, RT}
+    catch
+        {parse_error, expected, SH} ->
+            throw({parse_error, expected, S});
+        {parse_error, expected, NT} ->
+            throw({parse_error, expected, NT})
+    end;
+case_string(S, _) when not is_binary(S) -> error({badarg, S});
+case_string(_, L) -> error({badarg, L}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%
@@ -76,35 +117,32 @@ both(M1, F1, M2, F2, A, Err) ->
 %% tries to match M:F(A), if that fails returns {<<>>, A}
 optional(M, F, A) -> option(<<>>, M, F, A).
 
-%% tries to match H, then will match as much as it can before encountering
-%% T, the result of which will be passed to M:F
-between(H, T, M, F, A) when is_binary(H) andalso is_binary(T) andalso
+%% tries to match using H, then will match as much as it can before T matches,
+%% the result of which will be passed to M:F
+between(H, T, M, F, A) when is_function(H) andalso is_function(T) andalso
                             is_binary(A) ->
-    B1 = try
-             Size = byte_size(H),
-             <<H:Size/binary, B/binary>> = A,
-             B
-         catch
-             error:{badmatch, _} -> throw({parse_error, expected, H})
-         end,
+    {_, B1} = H(A),
     {B2, Tail} = until(T, B1),
     {M:F(B2), Tail};
-between(H, _, _, _, _) when not is_binary(H) -> error({badarg, H});
-between(_, T, _, _, _) when not is_binary(T) -> error({badarg, T});
+between(H, _, _, _, _) when not is_function(H) -> error({badarg, H});
+between(_, T, _, _, _) when not is_function(T) -> error({badarg, T});
 between(_, _, _, _, A) when not is_binary(A) -> error({badarg, A}).
 
-%% matches until T is encountered, it is a parse error to reach the end of
+%% matches until T matches, it is a parse error to reach the end of
 %% the binary without encountering T. The matches are returned, as is the
 %% tail after T.
-until(T, B) when is_binary(T) andalso is_binary(B) ->
-    case binary:match(B, T) of
-        nomatch -> throw({parse_error, expected, T});
-        {S, E} ->
-            Body = binary:part(B, {0, S}),
-            Tail = binary:part(B, {S+E, byte_size(B) - (S+E)}),
-            {Body, Tail}
+%%
+%% The function T should return a tuple of the form {match, Tail} if a
+%% match was found, otherwise it should return nomatch.
+until(T, B) when is_function(T) andalso is_binary(B) ->
+    case T(B) of
+        {match, Match} -> {<<>>, Match};
+        nomatch ->
+            <<H, Temp/binary>> = B,
+            {Rest, Tail} = until(T, Temp),
+            {<<H, Rest/binary>>, Tail}
     end;
-until(T, _) when not is_binary(T) -> error({badarg, T});
+until(T, _) when not is_function(T) -> error({badarg, T});
 until(_, B) when not is_binary(B) -> error({badarg, B}).
 
 %% joins characters and binarys
@@ -118,4 +156,3 @@ bin_join(X, Y) -> <<X, Y>>.
 
 %% joins a list of characters and binaries
 bin_concat(L) -> lists:foldl(fun(X, Acc) -> bin_join(Acc, X) end, <<>>, L).
-

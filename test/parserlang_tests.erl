@@ -5,7 +5,7 @@
 
 -module(parserlang_tests).
 -include_lib("eunit/include/eunit.hrl").
--export([test_parser/1, test_parser2/1]).
+-export([test_parser/1, test_parser2/1, match_fun/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Helper Functions %%%%
@@ -24,6 +24,82 @@ test_parser2(X) when is_binary(X) ->
        true -> throw({parse_error, expected, "between 11 and 20"})
     end;
 test_parser2(X) -> error({badarg, X}).
+
+match_fun(X) ->
+    fun(Y) ->
+            case Y of
+                <<>> -> throw({parse_error, expected, X});
+                _    ->
+                    <<H, T/binary>> = Y,
+                    if <<H>> == X -> {match, T};
+                       true -> nomatch
+                    end
+            end
+    end.
+
+% a list of the alphabet codes
+alphaset() -> lists:concat([ lists:seq(65, 90), lists:seq(97, 122) ]).
+
+%% the list of all common types which are not integers
+noninteger_typeset() -> [ [], <<>>,  a, "", 0.0, fun() -> {} end, {a, typle} ].
+
+%% the list of all common types which are not binary
+nonbinary_typeset() -> [ [], 0, a, "", 0.0, fun() -> {} end, {a, tuple}].
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%%% Generic Parsers %%%
+%%%%%%%%%%%%%%%%%%%%%%%
+% test case insensitive charcter matches
+case_char_test_() ->
+    [ lists:map(
+        fun(X) ->
+            [ ?_assertEqual({X, <<>>}, parserlang:case_char(X, <<X>>)),
+              ?_assertEqual({X + 32, <<>>},
+                            parserlang:case_char(X, <<(X + 32)>>)) ]
+        end,
+        lists:seq(65, 90)),
+      lists:map(fun(X) ->
+        lists:map(fun(Y) ->
+            ?_assertThrow({parse_error, expected, X},
+                          parserlang:case_char(X, <<Y>>))
+                  end,
+                  lists:subtract(alphaset(), [X, X+32]))
+                end,
+                lists:seq(65, 90)),
+      lists:map(
+        fun(X) -> ?_assertError({badarg, _},
+                                parserlang:case_char(X, <<>>)) end,
+        noninteger_typeset()),
+      lists:map(
+        fun(X) -> ?_assertError({badarg, _}, parserlang:case_char(97, X)) end,
+        nonbinary_typeset())
+    ].
+
+% test case insensitive string matches
+case_string_test_() ->
+    [ lists:map(fun({Match, In}) ->
+                       ?_assertEqual({In, <<>>},
+                       parserlang:case_string(Match, In))
+               end,
+               [ { <<"abc">>, <<"abc">> },
+                 { <<"XyZ">>, <<"xyz">> },
+                 { <<"ijk">>, <<"Ijk">> } ]),
+      lists:map(fun({Match, In}) ->
+                        ?_assertThrow({parse_error, expected, _},
+                                      parserlang:case_string(Match, In))
+                end,
+                [ { <<"abc">>, <<"ab">> },
+                  { <<"ihj">>, <<"abc">> },
+                  { <<"abd">>, <<"abc">> } ]),
+      lists:map(
+        fun(X) -> ?_assertError({badarg, _},
+                                parserlang:case_string(X, <<>>)) end,
+        nonbinary_typeset()),
+      lists:map(
+        fun(X) -> ?_assertError({badarg, _},
+                                parserlang:case_string(<<>>, X)) end,
+        nonbinary_typeset())
+    ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%
@@ -115,35 +191,40 @@ optional_test_() -> [ ?_assertEqual({<<>>, <<"a">>},
                                                         <<0>>))
                     ].
 
-between_test_() -> [ ?_assertEqual({<<"bc">>, <<"xyz">>},
-                                   parserlang:between(<<"a">>, <<"|">>,
+between_test_() ->
+    HF = fun(X) -> parserlang:case_string(<<"a">>, X) end,
+    TF = match_fun(<<"|">>),
+    [ ?_assertEqual({<<"bc">>, <<"xyz">>},
+                                   parserlang:between(HF, TF,
                                                       binary, copy,
                                                       <<"abc|xyz">>)),
                      ?_assertThrow({parse_error, expected, <<"a">>},
-                                   parserlang:between(<<"a">>, <<"|">>,
+                                   parserlang:between(HF, TF,
                                                       binary, copy,
                                                       <<"bc|xyz">>)),
                      ?_assertThrow({parse_error, expected, <<"|">>},
-                                   parserlang:between(<<"a">>, <<"|">>,
+                                   parserlang:between(HF, TF,
                                                       binary, copy,
                                                       <<"abcxyz">>)),
                      ?_assertError({badarg, a},
-                                   parserlang:between(a, <<>>,
-                                                      binary, copy, <<>>)),
+                                   parserlang:between(a, TF, binary, copy,
+                                                      <<>>)),
                      ?_assertError({badarg, a},
-                                   parserlang:between(<<>>, a,
-                                                      binary, copy, <<>>)),
+                                   parserlang:between(HF, a, binary, copy,
+                                                      <<>>)),
                      ?_assertError({badarg, a},
-                                   parserlang:between(<<>>, <<>>,
-                                                      binary, copy, a))
+                                   parserlang:between(HF, TF, binary, copy, a))
                    ].
 
 until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
-                                 parserlang:until(<<"|">>, <<"abc|xyz">>)),
+                                 parserlang:until(match_fun(<<"|">>),
+                                                  <<"abc|xyz">>)),
                    ?_assertThrow({parse_error, expected, <<"|">>},
-                                 parserlang:until(<<"|">>, <<"abcxyz">>)),
+                                 parserlang:until(match_fun(<<"|">>),
+                                                  <<"abcxyz">>)),
                    ?_assertError({badarg, a}, parserlang:until(a, <<>>)),
-                   ?_assertError({badarg, a}, parserlang:until(<<>>, a))
+                   ?_assertError({badarg, a}, parserlang:until(match_fun(<<>>),
+                                                               a))
                  ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
