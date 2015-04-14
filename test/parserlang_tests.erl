@@ -49,6 +49,17 @@ nonbinary_typeset() -> [ [], 0, a, "", 0.0, fun() -> {} end, {a, tuple}].
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% Generic Parsers %%%
 %%%%%%%%%%%%%%%%%%%%%%%
+% test case sensitive charcter matches
+char_test_() ->
+    [ lists:map(
+        fun(X) -> ?_assertEqual({X, <<>>}, parserlang:char(X, <<X>>)) end,
+        [ $A, $a, $Z, $z, $:, $@, $$ ]),
+      ?_assertThrow({parse_error, expected, $a},
+                    parserlang:char($a, <<"b">>)),
+      ?_assertError({badarg, a}, parserlang:char($a, a)),
+      ?_assertError({badarg, a}, parserlang:char(a, <<>>))
+    ].
+
 % test case insensitive charcter matches
 case_char_test_() ->
     [ lists:map(

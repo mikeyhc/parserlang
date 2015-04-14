@@ -6,7 +6,7 @@
 
 -module(parserlang).
 -export([% generic parsers
-         case_char/2, case_string/2,
+         char/2, case_char/2, case_string/2,
 
          % parser combinators
          many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
@@ -23,6 +23,17 @@ to_lower(C) -> C.
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% Generic Parsers %%%
 %%%%%%%%%%%%%%%%%%%%%%%
+
+%% case sensitive character match
+char(C, S) when is_binary(S) andalso is_integer(C) ->
+    try
+        <<C, T/binary>> = S,
+        {C, T}
+    catch
+        error:{badmatch, _} -> throw({parse_error, expected, C})
+    end;
+char(_, S) when not is_binary(S) -> error({badarg, S});
+char(C, _) -> error({badarg, C}).
 
 %% case insensitive character match
 case_char(C, S) when is_binary(S) andalso is_integer(C) ->
