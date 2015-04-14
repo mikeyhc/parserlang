@@ -115,6 +115,37 @@ optional_test_() -> [ ?_assertEqual({<<>>, <<"a">>},
                                                         <<0>>))
                     ].
 
+between_test_() -> [ ?_assertEqual({<<"bc">>, <<"xyz">>},
+                                   parserlang:between(<<"a">>, <<"|">>,
+                                                      binary, copy,
+                                                      <<"abc|xyz">>)),
+                     ?_assertThrow({parse_error, expected, <<"a">>},
+                                   parserlang:between(<<"a">>, <<"|">>,
+                                                      binary, copy,
+                                                      <<"bc|xyz">>)),
+                     ?_assertThrow({parse_error, expected, <<"|">>},
+                                   parserlang:between(<<"a">>, <<"|">>,
+                                                      binary, copy,
+                                                      <<"abcxyz">>)),
+                     ?_assertError({badarg, a},
+                                   parserlang:between(a, <<>>,
+                                                      binary, copy, <<>>)),
+                     ?_assertError({badarg, a},
+                                   parserlang:between(<<>>, a,
+                                                      binary, copy, <<>>)),
+                     ?_assertError({badarg, a},
+                                   parserlang:between(<<>>, <<>>,
+                                                      binary, copy, a))
+                   ].
+
+until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
+                                 parserlang:until(<<"|">>, <<"abc|xyz">>)),
+                   ?_assertThrow({parse_error, expected, <<"|">>},
+                                 parserlang:until(<<"|">>, <<"abcxyz">>)),
+                   ?_assertError({badarg, a}, parserlang:until(a, <<>>)),
+                   ?_assertError({badarg, a}, parserlang:until(<<>>, a))
+                 ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
