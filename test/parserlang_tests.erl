@@ -105,6 +105,16 @@ both_test_() -> [ ?_assertThrow({parse_error, expected, "msg"},
                                                 <<0, 1>>, "msg"))
                 ].
 
+optional_test_() -> [ ?_assertEqual({<<>>, <<"a">>},
+                                    parserlang:optional(parserlang_tests,
+                                                        test_parser,
+                                                        <<"a">>)),
+                      ?_assertEqual({0, <<>>},
+                                    parserlang:optional(parserlang_tests,
+                                                        test_parser,
+                                                        <<0>>))
+                    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -115,3 +125,6 @@ bin_join_test_() ->
       ?_assertEqual(<<"abc">>, parserlang:bin_join(<<"ab">>, 99)),
       ?_assertEqual(<<"aa">>, parserlang:bin_join(97, 97))
     ].
+
+bin_concat_test_() ->
+    ?_assertEqual(<<"abcd">>, parserlang:bin_concat([ 97, <<"bc">>, 100])).

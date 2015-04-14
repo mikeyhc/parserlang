@@ -6,10 +6,10 @@
 
 -module(parserlang).
 -export([% parser combinators
-         many/3, many1/3, option/4, either/6, both/6,
+         many/3, many1/3, option/4, either/6, both/6, optional/3,
 
          % type construction
-         bin_join/2]).
+         bin_join/2, bin_concat/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%
@@ -72,6 +72,9 @@ both(M1, F1, M2, F2, A, Err) ->
         error:{badmatch, _} -> throw({parse_error, expected, Err})
     end.
 
+% tries to match M:FA, if that fails returns {<<>>, A}
+optional(M, F, A) -> option(<<>>, M, F, A).
+
 % joins characters and binarys
 bin_join(X, Y) when is_binary(X) andalso is_binary(Y) ->
     <<X/binary, Y/binary>>;
@@ -80,3 +83,7 @@ bin_join(X, Y) when is_integer(X) andalso is_binary(Y) ->
 bin_join(X, Y) when is_binary(X) andalso is_integer(Y) ->
     <<X/binary, Y>>;
 bin_join(X, Y) -> <<X, Y>>.
+
+% joins a list of characters and binaries
+bin_concat(L) -> lists:foldl(fun(X, Acc) -> bin_join(Acc, X) end, <<>>, L).
+
