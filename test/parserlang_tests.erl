@@ -238,6 +238,14 @@ until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
                                                                a))
                  ].
 
+oneof_test_() -> [ ?_assertEqual({$x, <<"yz">>},
+                                 parserlang:oneof(<<"abcxyz">>, <<"xyz">>)),
+                   ?_assertThrow({parse_error, expected, "one of \"abc\""},
+                                 parserlang:oneof(<<"abc">>, <<"xyz">>)),
+                   ?_assertError({badarg, a}, parserlang:oneof(a, <<>>)),
+                   ?_assertError({badarg, a}, parserlang:oneof(<<>>, a))
+                 ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
