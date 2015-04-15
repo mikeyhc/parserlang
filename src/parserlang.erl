@@ -6,11 +6,11 @@
 
 -module(parserlang).
 -export([% generic parsers
-         char/2, case_char/2, case_string/2,
+         char/2, case_char/2, case_string/2, oneof/2,
 
          % parser combinators
          many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
-         until/2, oneof/2,
+         until/2, tryparse/3,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -64,9 +64,23 @@ case_string(S, L) when is_binary(L) andalso is_binary(S) ->
 case_string(S, _) when not is_binary(S) -> error({badarg, S});
 case_string(_, L) -> error({badarg, L}).
 
+%% tries to match the head of Bin one of List, throws a parse_error if
+%% it cannot
+oneof(List, Bin) when is_binary(List) andalso is_binary(Bin) ->
+    <<H, T/binary>> = Bin,
+    L = binary:bin_to_list(List),
+    case lists:member(H, L) of
+        true -> {H, T};
+        false -> throw({parse_error, expected, "one of \"" ++ L ++ "\""})
+    end;
+oneof(List, _) when not is_binary(List) -> error({badarg, List});
+oneof(_, Bin) -> error({badarg, Bin}).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%% %% match 0 or more times using M:F(A)
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% match 0 or more times using M:F(A)
 many(M, F, A) ->
     try
         {X, Y} = apply_many(M, F, A),
@@ -137,18 +151,6 @@ between(H, _, _, _, _) when not is_function(H) -> error({badarg, H});
 between(_, T, _, _, _) when not is_function(T) -> error({badarg, T});
 between(_, _, _, _, A) when not is_binary(A) -> error({badarg, A}).
 
-%% tries to match the head of Bin one of List, throws a parse_error if
-%% it cannot
-oneof(List, Bin) when is_binary(List) andalso is_binary(Bin) ->
-    <<H, T/binary>> = Bin,
-    L = binary:bin_to_list(List),
-    case lists:member(H, L) of
-        true -> {H, T};
-        false -> throw({parse_error, expected, "one of \"" ++ L ++ "\""})
-    end;
-oneof(List, _) when not is_binary(List) -> error({badarg, List});
-oneof(_, Bin) -> error({badarg, Bin}).
-
 %% matches until T matches, it is a parse error to reach the end of
 %% the binary without encountering T. The matches are returned, as is the
 %% tail after T.
@@ -165,6 +167,21 @@ until(T, B) when is_function(T) andalso is_binary(B) ->
     end;
 until(T, _) when not is_function(T) -> error({badarg, T});
 until(_, B) when not is_binary(B) -> error({badarg, B}).
+
+%% try attempts to match using the given parser, if it fails the empty
+%% binary will be returned as the head and the tail will be the binary
+%% that was originally passed in
+tryparse(M, F, A) ->
+    try
+        apply_many(M, F, A)
+    catch
+        {parse_error, expected, _} -> {<<>>, A};
+        error:{badmatch, _} -> {<<>>, A}
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Type Construction %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% joins characters and binarys
 bin_join(X, Y) when is_binary(X) andalso is_binary(Y) ->

@@ -46,6 +46,14 @@ noninteger_typeset() -> [ [], <<>>,  a, "", 0.0, fun() -> {} end, {a, typle} ].
 %% the list of all common types which are not binary
 nonbinary_typeset() -> [ [], 0, a, "", 0.0, fun() -> {} end, {a, tuple}].
 
+oneof_test_() -> [ ?_assertEqual({$x, <<"yz">>},
+                                 parserlang:oneof(<<"abcxyz">>, <<"xyz">>)),
+                   ?_assertThrow({parse_error, expected, "one of \"abc\""},
+                                 parserlang:oneof(<<"abc">>, <<"xyz">>)),
+                   ?_assertError({badarg, a}, parserlang:oneof(a, <<>>)),
+                   ?_assertError({badarg, a}, parserlang:oneof(<<>>, a))
+                 ].
+
 %%%%%%%%%%%%%%%%%%%%%%%
 %%% Generic Parsers %%%
 %%%%%%%%%%%%%%%%%%%%%%%
@@ -238,13 +246,19 @@ until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
                                                                a))
                  ].
 
-oneof_test_() -> [ ?_assertEqual({$x, <<"yz">>},
-                                 parserlang:oneof(<<"abcxyz">>, <<"xyz">>)),
-                   ?_assertThrow({parse_error, expected, "one of \"abc\""},
-                                 parserlang:oneof(<<"abc">>, <<"xyz">>)),
-                   ?_assertError({badarg, a}, parserlang:oneof(a, <<>>)),
-                   ?_assertError({badarg, a}, parserlang:oneof(<<>>, a))
-                 ].
+tryparse_test_() -> [ ?_assertEqual({0, <<>>},
+                                    parserlang:tryparse(parserlang_tests,
+                                                        test_parser,
+                                                        <<0>>)),
+                      ?_assertEqual({<<>>, <<11>>},
+                                    parserlang:tryparse(parserlang_tests,
+                                                        test_parser,
+                                                        <<11>>)),
+                      ?_assertEqual({<<>>, <<>>},
+                                    parserlang:tryparse(parserlang_tests,
+                                                        test_parser,
+                                                        <<>>))
+                    ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
