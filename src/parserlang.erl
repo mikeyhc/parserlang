@@ -43,7 +43,8 @@ case_char(C, S) when is_binary(S) andalso is_integer(C) ->
         false -> throw({parse_error, expected, C})
     end;
 case_char(C, _) when not is_integer(C) -> error({badarg, C});
-case_char(_, S) -> error({badarg, S}).  
+case_char(_, S) -> error({badarg, S}).
+
 %% case insensitive string match
 case_string(<<>>, L) when is_binary(L) -> {<<>>, L};
 case_string(S, <<>>) when is_binary(S) ->
@@ -182,6 +183,13 @@ tryparse(M, F, A) ->
 %% succeed the result is returned straight away, however if the all fail
 %% the given message is produced
 orparse([], _, Msg) -> throw({parse_error, expected, Msg});
+orparse([H|T], A, Msg) when is_function(H) ->
+    try
+        H(A)
+    catch
+        {parse_error, expected, _} -> orparse(T, A, Msg);
+        error:{badmatch, _} -> orparse(T, A, Msg)
+    end;
 orparse([{M,F}|T], A, Msg) ->
     try
         M:F(A)
