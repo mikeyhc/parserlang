@@ -260,6 +260,22 @@ tryparse_test_() -> [ ?_assertEqual({0, <<>>},
                                                         <<>>))
                     ].
 
+orparse_test_() ->
+    [ ?_assertEqual({11, <<>>},
+                    parserlang:orparse([{parserlang_tests, test_parser},
+                                        {parserlang_tests, test_parser2}],
+                                       <<11>>, "char between 0 and 20")),
+      ?_assertThrow({parse_error, expected, "char between 0 and 20"},
+                    parserlang:orparse([{parserlang_tests, test_parser},
+                                        {parserlang_tests, test_parser2}],
+                                       <<21>>, "char between 0 and 20")),
+      ?_assertThrow({parse_error, expected, "char between 0 and 20"},
+                    parserlang:orparse([{parserlang_tests, test_parser},
+                                        {parserlang_tests, test_parser2}],
+                                       <<>>, "char between 0 and 20")),
+      ?_assertError({badarg, a}, parserlang:orparse(a, <<>>, ""))
+    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%

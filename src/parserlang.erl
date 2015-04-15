@@ -10,7 +10,7 @@
 
          % parser combinators
          many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
-         until/2, tryparse/3,
+         until/2, tryparse/3, orparse/3,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -43,8 +43,7 @@ case_char(C, S) when is_binary(S) andalso is_integer(C) ->
         false -> throw({parse_error, expected, C})
     end;
 case_char(C, _) when not is_integer(C) -> error({badarg, C});
-case_char(_, S) -> error({badarg, S}).
-
+case_char(_, S) -> error({badarg, S}).  
 %% case insensitive string match
 case_string(<<>>, L) when is_binary(L) -> {<<>>, L};
 case_string(S, <<>>) when is_binary(S) ->
@@ -178,6 +177,20 @@ tryparse(M, F, A) ->
         {parse_error, expected, _} -> {<<>>, A};
         error:{badmatch, _} -> {<<>>, A}
     end.
+
+%% orparse attempts to match using the list of parsers, if any of them
+%% succeed the result is returned straight away, however if the all fail
+%% the given message is produced
+orparse([], _, Msg) -> throw({parse_error, expected, Msg});
+orparse([{M,F}|T], A, Msg) ->
+    try
+        M:F(A)
+    catch
+        {parse_error, expected, _} -> orparse(T, A, Msg);
+        error:{badmatch, _} -> orparse(T, A, Msg)
+    end;
+orparse(Arg, _, _) -> error({badarg, Arg}).
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
