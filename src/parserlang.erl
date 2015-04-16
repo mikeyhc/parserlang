@@ -10,7 +10,7 @@
 
          % parser combinators
          many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
-         until/2, tryparse/3, orparse/3,
+         until/2, tryparse/3, orparse/3, choice/2,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -91,7 +91,7 @@ many(M, F, A) ->
         error:{badmatch, <<>>}     -> {<<>>, A}
     end.
 
-%% match 1 or more times using M:F(A)
+%% match 1 or more times using apply_many
 many1(M, F, A) ->
     {X, Y} = apply_many(M, F, A),
     {Acc, T} = many(M, F, Y),
@@ -199,6 +199,19 @@ orparse([{M,F}|T], A, Msg) ->
     end;
 orparse(Arg, _, _) -> error({badarg, Arg}).
 
+%% returns a function that that takes input and attempts to match it with
+%% any of the functions passed to it at creation
+choice(FuncList, Error) ->
+    Rec = fun Rec(_, []) -> throw({parse_error, expected, Error});
+              Rec(B, [H|T]) ->
+                try
+                    H(B)
+                catch
+                    {parse_error, expected, _} -> Rec(B, T);
+                    error:{badmatch, _} -> Rec(B, T)
+                end
+    end,
+    fun(X) -> Rec(X, FuncList) end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%

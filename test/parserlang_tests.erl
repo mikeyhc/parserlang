@@ -287,6 +287,17 @@ orparse_test_() ->
       ?_assertError({badarg, a}, parserlang:orparse(a, <<>>, ""))
     ].
 
+choice_test_() ->
+    C = parserlang:choice([ fun(X) -> parserlang_tests:test_parser(X) end,
+                            fun(X) -> parserlang_tests:test_parser2(X) end
+                          ], "char between 0 and 20"),
+    [ ?_assertEqual({11, <<>>}, C(<<11>>)),
+      ?_assertThrow({parse_error, expected, "char between 0 and 20"},
+                    C(<<21>>)),
+      ?_assertThrow({parse_error, expected, "char between 0 and 20"}, C(<<>>)),
+      ?_assertError({badarg, a}, C(a))
+    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
