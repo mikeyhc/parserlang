@@ -201,17 +201,16 @@ orparse(Arg, _, _) -> error({badarg, Arg}).
 
 %% returns a function that that takes input and attempts to match it with
 %% any of the functions passed to it at creation
-choice(FuncList, Error) ->
-    Rec = fun Rec(_, []) -> throw({parse_error, expected, Error});
-              Rec(B, [H|T]) ->
-                try
-                    H(B)
-                catch
-                    {parse_error, expected, _} -> Rec(B, T);
-                    error:{badmatch, _} -> Rec(B, T)
-                end
-    end,
-    fun(X) -> Rec(X, FuncList) end.
+choice(FuncList, Error) -> fun(X) -> choice_(X, FuncList, Error) end.
+
+choice_(_, [], Err) -> throw({parse_error, expected, Err});
+choice_(B, [H|T], Err) ->
+    try
+        H(B)
+    catch
+        {parse_error, expected, _} -> choice_(B, T, Err);
+        error:{badmatch, _} -> choice_(B, T, Err)
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
