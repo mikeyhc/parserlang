@@ -124,28 +124,38 @@ case_string_test_() ->
 %%% Parser Combinators %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-many_test_() -> [ ?_assertEqual({<<>>, <<>>},
-                                parserlang:many(parserlang_tests, test_parser,
-                                                <<>>)),
-                  ?_assertEqual({<<>>, <<"a">>},
-                                parserlang:many(parserlang_tests, test_parser,
-                                                <<"a">>)),
-                  ?_assertEqual({<<0,1>>, <<>>},
-                                parserlang:many(parserlang_tests, test_parser,
-                                                <<0,1>>)),
-                  %% to test apply_many w/list
-                  ?_assertEqual({<<0,1>>, <<>>},
-                                parserlang:many(parserlang_tests, test_parser,
-                                                [<<0,1>>]))
-                ].
+many_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [%% many/3
+     ?_assertEqual({<<>>, <<>>},
+                   parserlang:many(parserlang_tests, test_parser, <<>>)),
+     ?_assertEqual({<<>>, <<"a">>},
+                   parserlang:many(parserlang_tests, test_parser, <<"a">>)),
+     ?_assertEqual({<<0,1>>, <<>>},
+                   parserlang:many(parserlang_tests, test_parser, <<0,1>>)),
 
-many1_test_() -> [ ?_assertThrow({parse_error, expected, _},
-                                 parserlang:many1(parserlang_tests,
-                                                  test_parser, <<"a">>)),
-                   ?_assertEqual({<<0,1>>, <<>>},
-                                 parserlang:many1(parserlang_tests,
-                                                  test_parser, <<0,1>>))
-                 ].
+     %% to test apply_many w/list
+     ?_assertEqual({<<0,1>>, <<>>},
+                   parserlang:many(parserlang_tests, test_parser, [<<0,1>>])),
+
+     %% many/2
+     ?_assertEqual({<<>>, <<>>}, parserlang:many(F, <<>>)),
+     ?_assertEqual({<<>>, <<"a">>}, parserlang:many(F, <<"a">>)),
+     ?_assertEqual({<<0,1>>, <<>>}, parserlang:many(F, <<0, 1>>))
+    ].
+
+many1_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [%% many1/3
+     ?_assertThrow({parse_error, expected, _},
+                   parserlang:many1(parserlang_tests, test_parser, <<"a">>)),
+     ?_assertEqual({<<0,1>>, <<>>},
+                   parserlang:many1(parserlang_tests, test_parser, <<0,1>>)),
+
+     %% many1/2
+     ?_assertThrow({parse_error, expected, _}, parserlang:many1(F, <<"a">>)),
+     ?_assertEqual({<<0,1>>, <<>>}, parserlang:many1(F, <<0,1>>))
+    ].
 
 option_test_() -> [ ?_assertEqual({<<>>, <<"0">>},
                                   parserlang:option(<<>>, parserlang_tests,

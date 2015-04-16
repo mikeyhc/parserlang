@@ -9,8 +9,8 @@
          char/2, case_char/2, case_string/2, oneof/2,
 
          % parser combinators
-         many/3, many1/3, option/4, either/6, both/6, optional/3, between/5,
-         until/2, tryparse/3, orparse/3, choice/2,
+         many/2, many/3, many1/2, many1/3, option/4, either/6, both/6,
+         optional/3, between/5, until/2, tryparse/3, orparse/3, choice/2,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -80,7 +80,18 @@ oneof(_, Bin) -> error({badarg, Bin}).
 %%% Parser Combinators %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% match 0 or more times using M:F(A)
+%% match 0 of more times using F(A)
+many(F, A) ->
+    try
+        {X, Y} = F(A),
+        {Acc, T} = many(F, Y),
+        {bin_join(X, Acc), T}
+    catch
+        {parse_error, expected, _} -> {<<>>, A};
+        error:{badmatch, <<>>} -> {<<>>, A}
+    end.
+
+%% match 0 or more times using apply_many
 many(M, F, A) ->
     try
         {X, Y} = apply_many(M, F, A),
@@ -91,11 +102,17 @@ many(M, F, A) ->
         error:{badmatch, <<>>}     -> {<<>>, A}
     end.
 
+%% match 1 or mote times using F(A)
+many1(F, A) ->
+    {X, Y} = F(A),
+    {Acc, T} = many(F, Y),
+    {bin_join(X, Acc), T}.
+
 %% match 1 or more times using apply_many
 many1(M, F, A) ->
     {X, Y} = apply_many(M, F, A),
     {Acc, T} = many(M, F, Y),
-    {<<X, Acc/binary>>, T}.
+    {bin_join(X, Acc), T}.
 
 apply_many(M, F, A) when is_list(A) -> apply(M, F, A);
 apply_many(M, F, A) -> M:F(A).
