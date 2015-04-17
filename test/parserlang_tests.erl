@@ -336,6 +336,28 @@ sepby1_test_() ->
                     parserlang:sepby1(F1, F2, <<1,11,1>>))
     ].
 
+count_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [ ?_assertEqual({<<1,2,3>>, <<>>},
+                    parserlang:count(3, F, <<1,2,3>>)),
+      ?_assertEqual({<<1,2>>, <<3>>},
+                    parserlang:count(2, F, <<1,2,3>>)),
+      ?_assertError({badarg, a}, parserlang:count(a, a, a)),
+      ?_assertError({badarg, a}, parserlang:count(2, a, a)),
+      ?_assertError({badarg, a}, parserlang:count(2, F, a))
+    ].
+
+manyN_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [ ?_assertEqual({<<1,2,3>>, <<>>},
+                    parserlang:manyN(3, F, <<1,2,3>>)),
+      ?_assertEqual({<<1,2,3>>, <<>>},
+                    parserlang:manyN(2, F, <<1,2,3>>)),
+      ?_assertError({badarg, a}, parserlang:manyN(a, a, a)),
+      ?_assertError({badarg, a}, parserlang:manyN(2, a, a)),
+      ?_assertError({badarg, a}, parserlang:manyN(2, F, a))
+    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%

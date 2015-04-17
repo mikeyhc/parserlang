@@ -11,7 +11,7 @@
          % parser combinators
          many/2, many/3, many1/2, many1/3, option/3, option/4, either/6,
          both/6, optional/3, between/5, until/2, tryparse/3, orparse/3,
-         choice/2, sepby/3, sepby1/3,
+         choice/2, sepby/3, sepby1/3, manyN/3, count/3,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -266,6 +266,27 @@ sepby1(Content, Sep, Text) ->
     {H2, T2} = Sep(T1),
     {H3, T3} = sepby(Content, Sep, T2),
     {bin_concat([H1, H2, H3]), T3}.
+
+% matches a parser at least N times
+manyN(N, P, X) when is_integer(N) andalso is_function(P) andalso
+                    is_binary(X) ->
+    {H1, T1} = count(N, P, X),
+    {H2, T2} = many(P, T1),
+    {bin_join(H1, H2), T2};
+manyN(N, _, _) when not is_integer(N) -> error({badarg, N});
+manyN(_, P, _) when not is_function(P) -> error({badarg, P});
+manyN(_, _, X) when not is_binary(X) -> error({badarg, X}).
+
+% matches a parser exactly N times
+count(N, _, X) when N =< 0 -> {<<>>, X};
+count(N, P, X) when is_integer(N) andalso is_function(P) andalso
+                    is_binary(X) ->
+    {H1, T1} = P(X),
+    {H2, T2} = count(N-1, P, T1),
+    {bin_join(H1, H2), T2};
+count(N, _, _) when not is_integer(N) -> error({badarg, N});
+count(_, P, _) when not is_function(P) -> error({badarg, P});
+count(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
