@@ -358,6 +358,18 @@ manyN_test_() ->
       ?_assertError({badarg, a}, parserlang:manyN(2, F, a))
     ].
 
+manyNtoM_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [ ?_assertEqual({<<1,2,3>>, <<>>},
+                    parserlang:manyNtoM(2, 4, F, <<1,2,3>>)),
+      ?_assertEqual({<<1,2,3,4>>, <<5>>},
+                    parserlang:manyNtoM(2, 4, F, <<1,2,3,4,5>>)),
+      ?_assertEqual({<<>>, <<>>}, parserlang:manyNtoM(-1, 4, F, <<>>)),
+      ?_assertEqual({<<>>, <<>>}, parserlang:manyNtoM(4, 0, F, <<>>)),
+      ?_assertEqual({<<0,1,2>>, <<>>},
+                    parserlang:manyNtoM(3, 3, F, <<0,1,2>>))
+    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%

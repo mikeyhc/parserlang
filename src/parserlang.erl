@@ -11,7 +11,7 @@
          % parser combinators
          many/2, many/3, many1/2, many1/3, option/3, option/4, either/6,
          both/6, optional/3, between/5, until/2, tryparse/3, orparse/3,
-         choice/2, sepby/3, sepby1/3, manyN/3, count/3,
+         choice/2, sepby/3, sepby1/3, manyN/3, count/3, manyNtoM/4,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -267,7 +267,7 @@ sepby1(Content, Sep, Text) ->
     {H3, T3} = sepby(Content, Sep, T2),
     {bin_concat([H1, H2, H3]), T3}.
 
-% matches a parser at least N times
+%% matches a parser at least N times
 manyN(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
     {H1, T1} = count(N, P, X),
@@ -277,7 +277,7 @@ manyN(N, _, _) when not is_integer(N) -> error({badarg, N});
 manyN(_, P, _) when not is_function(P) -> error({badarg, P});
 manyN(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
-% matches a parser exactly N times
+%% matches a parser exactly N times
 count(N, _, X) when N =< 0 -> {<<>>, X};
 count(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
@@ -287,6 +287,20 @@ count(N, P, X) when is_integer(N) andalso is_function(P) andalso
 count(N, _, _) when not is_integer(N) -> error({badarg, N});
 count(_, P, _) when not is_function(P) -> error({badarg, P});
 count(_, _, X) when not is_binary(X) -> error({badarg, X}).
+
+%% match a parser at least N times, but no more than M times
+manyNtoM(N, _, _, X) when N < 0 -> {<<>>, X};
+manyNtoM(N, M, _, X) when N > M -> {<<>>, X};
+manyNtoM(N, M, P, X) when N == M -> count(N, P, X);
+manyNtoM(N, M, P, X) when N == 0 ->
+    MkFunc = fun(Y) -> fun(Z) -> count(Y, P, Z) end end,
+    List = lists:map(MkFunc, lists:seq(M, 1, -1)),
+    orparse(List, X, "manyNtoM failed");
+manyNtoM(N, M, P, X) when is_integer(N) andalso is_integer(M) ->
+    {H1, T1} = count(N, P, X),
+    {H2, T2} = manyNtoM(0, M-N, P, T1),
+    {bin_join(H1, H2), T2}.
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
