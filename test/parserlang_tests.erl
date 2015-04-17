@@ -157,13 +157,21 @@ many1_test_() ->
      ?_assertEqual({<<0,1>>, <<>>}, parserlang:many1(F, <<0,1>>))
     ].
 
-option_test_() -> [ ?_assertEqual({<<>>, <<"0">>},
-                                  parserlang:option(<<>>, parserlang_tests,
-                                                    test_parser, <<"0">>)),
-                    ?_assertEqual({0, <<>>},
-                                  parserlang :option(<<>>, parserlang_tests,
-                                                     test_parser, <<0>>))
-                  ].
+option_test_() ->
+    F = fun(X) -> parserlang_tests:test_parser(X) end,
+    [%% option/4
+     ?_assertEqual({<<>>, <<"0">>}, parserlang:option(<<>>, parserlang_tests,
+                                                      test_parser, <<"0">>)),
+     ?_assertEqual({0, <<>>}, parserlang :option(<<>>, parserlang_tests,
+                                                 test_parser, <<0>>)),
+     ?_assertEqual({<<>>, <<>>}, parserlang:option(<<>>, parserlang_tests,
+                                                   test_parser, <<>>)),
+
+     %% option/3
+     ?_assertEqual({<<>>, <<"a">>}, parserlang:option(<<>>, F, <<"a">>)),
+     ?_assertEqual({0, <<>>}, parserlang:option(<<>>, F, <<0>>)),
+     ?_assertEqual({<<>>, <<>>}, parserlang:option(<<>>, F, <<>>))
+    ].
 
 either_test_() -> [ ?_assertEqual({0, <<>>},
                                   parserlang:either(parserlang_tests,

@@ -9,9 +9,9 @@
          char/2, case_char/2, case_string/2, oneof/2,
 
          % parser combinators
-         many/2, many/3, many1/2, many1/3, option/4, either/6, both/6,
-         optional/3, between/5, until/2, tryparse/3, orparse/3, choice/2,
-         sepby/3, sepby1/3,
+         many/2, many/3, many1/2, many1/3, option/3, option/4, either/6,
+         both/6, optional/3, between/5, until/2, tryparse/3, orparse/3,
+         choice/2, sepby/3, sepby1/3,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -118,12 +118,23 @@ many1(M, F, A) ->
 apply_many(M, F, A) when is_list(A) -> apply(M, F, A);
 apply_many(M, F, A) -> M:F(A).
 
+%% tries to match F(A) but if that fails will return {Def, A}
+option(Def, F, A) ->
+    try
+        F(A)
+    catch
+        {parse_error, expected, _} -> {Def, A};
+        error:{badmatch, _} -> {Def, A}
+    end.
+
+
 %% tries to match M:F(A), but if that fails will return {Def, A}
 option(Def, M, F, A) ->
     try
         apply_many(M, F, A)
     catch
-        {parse_error, expected, _} -> {Def, A}
+        {parse_error, expected, _} -> {Def, A};
+        error:{badmatch, _} -> {Def, A}
     end.
 
 %% tries to match one or the other, if both fail the error is thrown
