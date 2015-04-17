@@ -11,6 +11,7 @@
          % parser combinators
          many/2, many/3, many1/2, many1/3, option/4, either/6, both/6,
          optional/3, between/5, until/2, tryparse/3, orparse/3, choice/2,
+         sepby/3, sepby1/3,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -228,6 +229,32 @@ choice_(B, [H|T], Err) ->
         {parse_error, expected, _} -> choice_(B, T, Err);
         error:{badmatch, _} -> choice_(B, T, Err)
     end.
+
+%% takes a function to match content and another to match seperator and
+%% text to match, will return any number of text interspersed with
+%% the seperator
+sepby(Content, Sep, Text) ->
+    try
+        {H1, T1} = Content(Text),
+        try
+            {H2, T2} = Sep(T1),
+            {H3, T3} = sepby(Content, Sep, T2),
+            {bin_concat([H1, H2, H3]), T3}
+        catch
+            {parse_error, expected, _} -> {bin_concat([H1]), T1};
+            error:{badmatch, _} -> {bin_concat([H1]), T1}
+        end
+    catch
+        {parse_error, expected, _} -> {<<>>, Text};
+        error:{badmatch, _} -> {<<>>, Text}
+    end.
+
+%% same as sepby/3 but matches at least once
+sepby1(Content, Sep, Text) ->
+    {H1, T1} = Content(Text),
+    {H2, T2} = Sep(T1),
+    {H3, T3} = sepby(Content, Sep, T2),
+    {bin_concat([H1, H2, H3]), T3}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%

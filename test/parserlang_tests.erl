@@ -308,6 +308,26 @@ choice_test_() ->
       ?_assertError({badarg, a}, C(a))
     ].
 
+sepby_test_() ->
+    F1 = fun(X) -> parserlang_tests:test_parser(X) end,
+    F2 = fun(X) -> parserlang_tests:test_parser2(X) end,
+    [ ?_assertEqual({<<1,11,1>>, <<>>},
+                    parserlang:sepby(F1, F2, <<1, 11, 1>>)),
+      ?_assertEqual({<<>>, <<21>>},
+                    parserlang:sepby(F1, F2, <<21>>)),
+      ?_assertEqual({<<>>, <<>>},
+                    parserlang:sepby(F1, F2, <<>>)),
+      ?_assertEqual({<<10>>, <<21>>},
+                    parserlang:sepby(F1, F2, <<10, 21>>))
+    ].
+
+sepby1_test_() ->
+    F1 = fun(X) -> parserlang_tests:test_parser(X) end,
+    F2 = fun(X) -> parserlang_tests:test_parser2(X) end,
+    [ ?_assertEqual({<<1,11,1>>, <<>>},
+                    parserlang:sepby1(F1, F2, <<1,11,1>>))
+    ].
+
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Type Construction %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%
