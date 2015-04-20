@@ -10,8 +10,8 @@
 
          % parser combinators
          many/2, many/3, many1/2, many1/3, option/3, option/4, either/6,
-         both/6, optional/3, between/5, until/2, tryparse/3, orparse/3,
-         choice/2, sepby/3, sepby1/3, manyN/3, count/3, manyNtoM/4,
+         both/6, optional/3, between/5, between/4, until/2, tryparse/3,
+         orparse/3, choice/2, sepby/3, sepby1/3, manyN/3, count/3, manyNtoM/4,
 
          % type construction
          bin_join/2, bin_concat/1]).
@@ -179,6 +179,17 @@ between(H, T, M, F, A) when is_function(H) andalso is_function(T) andalso
 between(H, _, _, _, _) when not is_function(H) -> error({badarg, H});
 between(_, T, _, _, _) when not is_function(T) -> error({badarg, T});
 between(_, _, _, _, A) when not is_binary(A) -> error({badarg, A}).
+
+%% tries to match using H, then will match as much as it can before T matches,
+%% the result of which will be passed to F
+between(H, T, F, A) when is_function(H) andalso is_function(T) andalso
+                         is_function(F) ->
+    {_, B1} = H(A),
+    {B2, Tail} = until(T, B1),
+    {F(B2), Tail};
+between(H, _, _, _) when not is_function(H) -> error({badarg, H});
+between(_, T, _, _) when not is_function(T) -> error({badarg, T});
+between(_, _, F, _) when not is_function(F) -> error({badarg, F}).
 
 %% matches until T matches, it is a parse error to reach the end of
 %% the binary without encountering T. The matches are returned, as is the
