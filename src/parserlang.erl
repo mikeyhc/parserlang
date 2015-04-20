@@ -142,7 +142,7 @@ option(Def, F, A) ->
 
 
 %% tries to match M:F(A), but if that fails will return {Def, A}
--spec option(any(), atom(), atom(), binary()) -> {any(), binary()}.
+-spec option(any(), atom(), atom(), binary() | [any()]) -> {any(), binary()}.
 option(Def, M, F, A) ->
     try
         apply_many(M, F, A)
