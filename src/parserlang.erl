@@ -18,6 +18,7 @@
 
 %% converts an uppercase character to its lowercase version, if
 %% it is not an uppercase character no change is performed
+-spec to_lower(byte()) -> byte().
 to_lower(C) when C >= 65 andalso C =< 90 -> C + 32;
 to_lower(C) -> C.
 
@@ -26,6 +27,7 @@ to_lower(C) -> C.
 %%%%%%%%%%%%%%%%%%%%%%%
 
 %% case sensitive character match
+-spec char(byte(), <<_:8,_:_*8>>) -> {byte(), binary()}.
 char(C, S) when is_binary(S) andalso is_integer(C) ->
     try
         <<C, T/binary>> = S,
@@ -37,6 +39,7 @@ char(_, S) when not is_binary(S) -> error({badarg, S});
 char(C, _) -> error({badarg, C}).
 
 %% case insensitive character match
+-spec case_char(byte(), <<_:8,_:_*8>>) -> {byte(), binary()}.
 case_char(C, S) when is_binary(S) andalso is_integer(C) ->
     <<H, T/binary>> = S,
     case to_lower(H) == to_lower(C) of
@@ -47,6 +50,7 @@ case_char(C, _) when not is_integer(C) -> error({badarg, C});
 case_char(_, S) -> error({badarg, S}).
 
 %% case insensitive string match
+-spec case_string(binary(), <<_:8,_:_*8>>) -> {binary(), binary()}.
 case_string(<<>>, L) when is_binary(L) -> {<<>>, L};
 case_string(S, <<>>) when is_binary(S) ->
     throw({parse_error, expected, S});
@@ -67,6 +71,7 @@ case_string(_, L) -> error({badarg, L}).
 
 %% tries to match the head of Bin one of List, throws a parse_error if
 %% it cannot
+-spec oneof(<<_:8,_:_*8>>, <<_:8,_:_*8>>) -> {byte(), binary()}.
 oneof(List, Bin) when is_binary(List) andalso is_binary(Bin) ->
     <<H, T/binary>> = Bin,
     L = binary:bin_to_list(List),
@@ -82,6 +87,8 @@ oneof(_, Bin) -> error({badarg, Bin}).
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% match 0 of more times using F(A)
+-spec many(fun((binary()) -> {byte() | binary(), binary()}), binary())
+      -> {binary(), binary()}.
 many(F, A) ->
     try
         {X, Y} = F(A),
@@ -93,6 +100,7 @@ many(F, A) ->
     end.
 
 %% match 0 or more times using apply_many
+-spec many(atom(), atom(), binary()) -> {binary(), binary()}.
 many(M, F, A) ->
     try
         {X, Y} = apply_many(M, F, A),
@@ -104,12 +112,15 @@ many(M, F, A) ->
     end.
 
 %% match 1 or mote times using F(A)
+-spec many1(fun((binary()) -> {byte() | binary(), binary()}), binary())
+      -> {binary(), binary()}.
 many1(F, A) ->
     {X, Y} = F(A),
     {Acc, T} = many(F, Y),
     {bin_join(X, Acc), T}.
 
 %% match 1 or more times using apply_many
+-spec many1(atom(), atom(), binary()) -> {binary(), binary()}.
 many1(M, F, A) ->
     {X, Y} = apply_many(M, F, A),
     {Acc, T} = many(M, F, Y),
@@ -119,6 +130,8 @@ apply_many(M, F, A) when is_list(A) -> apply(M, F, A);
 apply_many(M, F, A) -> M:F(A).
 
 %% tries to match F(A) but if that fails will return {Def, A}
+-spec option(any(), fun((binary()) -> {any(), binary()}), binary())
+      -> {any(), binary()}.
 option(Def, F, A) ->
     try
         F(A)
@@ -129,6 +142,7 @@ option(Def, F, A) ->
 
 
 %% tries to match M:F(A), but if that fails will return {Def, A}
+-spec option(any(), atom(), atom(), binary()) -> {any(), binary()}.
 option(Def, M, F, A) ->
     try
         apply_many(M, F, A)
@@ -138,6 +152,8 @@ option(Def, M, F, A) ->
     end.
 
 %% tries to match one or the other, if both fail the error is thrown
+-spec either(atom(), atom(), atom(), atom(), binary(), any())
+      -> {any(), binary()}.
 either(M1, F1, M2, F2, A, Err) ->
     try
         M1:F1(A)
@@ -146,6 +162,7 @@ either(M1, F1, M2, F2, A, Err) ->
         error:{badmatch, _} -> either_(M2, F2, A, Err)
     end.
 
+-spec either_(atom(), atom(), binary(), any()) -> {any(), binary()}.
 either_(M, F, A, Err) ->
     try
         M:F(A)
@@ -156,6 +173,8 @@ either_(M, F, A, Err) ->
 
 % tries to match both, if either fail it throws a parse error with the given
 % message
+-spec both(atom(), atom(), atom(), atom(), binary(), any())
+      -> {any(), binary()}.
 both(M1, F1, M2, F2, A, Err) ->
     try
         {H1, T1} = apply_many(M1, F1, A),
@@ -167,10 +186,14 @@ both(M1, F1, M2, F2, A, Err) ->
     end.
 
 %% tries to match M:F(A), if that fails returns {<<>>, A}
+-spec optional(atom(), atom(), binary()) -> {any(), binary()}.
 optional(M, F, A) -> option(<<>>, M, F, A).
 
 %% tries to match using H, then will match as much as it can before T matches,
 %% the result of which will be passed to M:F
+-spec between(fun((binary()) -> {any(), binary()}),
+              fun((binary()) -> {any(), binary}), atom(), atom(), binary())
+      -> {any(), binary()}.
 between(H, T, M, F, A) when is_function(H) andalso is_function(T) andalso
                             is_binary(A) ->
     {_, B1} = H(A),
@@ -182,6 +205,10 @@ between(_, _, _, _, A) when not is_binary(A) -> error({badarg, A}).
 
 %% tries to match using H, then will match as much as it can before T matches,
 %% the result of which will be passed to F
+-spec between(fun((binary()) -> {any(), binary()}),
+              fun((binary()) -> {any(), binary()}),
+              fun((binary()) -> {any(), binary()}), binary())
+      -> {any(), binary()}.
 between(H, T, F, A) when is_function(H) andalso is_function(T) andalso
                          is_function(F) ->
     {_, B1} = H(A),
@@ -197,6 +224,8 @@ between(_, _, F, _) when not is_function(F) -> error({badarg, F}).
 %%
 %% The function T should return a tuple of the form {match, Tail} if a
 %% match was found, otherwise it should return nomatch.
+-spec until(fun((binary()) -> {any(), binary()}), binary())
+      -> {any(), binary()}.
 until(T, B) when is_function(T) andalso is_binary(B) ->
     case T(B) of
         {match, Match} -> {<<>>, Match};
@@ -211,6 +240,7 @@ until(_, B) when not is_binary(B) -> error({badarg, B}).
 %% try attempts to match using the given parser, if it fails the empty
 %% binary will be returned as the head and the tail will be the binary
 %% that was originally passed in
+-spec tryparse(atom(), atom(), binary()) -> {any(), binary()}.
 tryparse(M, F, A) ->
     try
         apply_many(M, F, A)
@@ -222,6 +252,8 @@ tryparse(M, F, A) ->
 %% orparse attempts to match using the list of parsers, if any of them
 %% succeed the result is returned straight away, however if the all fail
 %% the given message is produced
+-spec orparse([fun((binary()) -> {any, binary})], binary(), any())
+      -> {any(), binary()}.
 orparse([], _, Msg) -> throw({parse_error, expected, Msg});
 orparse([H|T], A, Msg) when is_function(H) ->
     try
@@ -241,8 +273,12 @@ orparse(Arg, _, _) -> error({badarg, Arg}).
 
 %% returns a function that that takes input and attempts to match it with
 %% any of the functions passed to it at creation
+-spec choice([fun((binary()) -> {any(), binary()})], any())
+      -> fun((binary()) -> {any(), binary()}).
 choice(FuncList, Error) -> fun(X) -> choice_(X, FuncList, Error) end.
 
+-spec choice_(binary(), [fun((binary()) -> {any(), binary()})], any())
+      -> {any(), binary()}.
 choice_(_, [], Err) -> throw({parse_error, expected, Err});
 choice_(B, [H|T], Err) ->
     try
@@ -255,6 +291,9 @@ choice_(B, [H|T], Err) ->
 %% takes a function to match content and another to match seperator and
 %% text to match, will return any number of text interspersed with
 %% the seperator
+-spec sepby(fun((binary()) -> {byte() | binary(), binary()}),
+            fun((binary()) -> {byte() | binary(), binary()}),
+            binary()) -> {binary(), binary()}.
 sepby(Content, Sep, Text) ->
     try
         {H1, T1} = Content(Text),
@@ -272,6 +311,9 @@ sepby(Content, Sep, Text) ->
     end.
 
 %% same as sepby/3 but matches at least once
+-spec sepby1(fun((binary()) -> {byte() | binary(), binary()}),
+             fun((binary()) -> {byte() | binary(), binary()}),
+             binary()) -> {binary(), binary()}.
 sepby1(Content, Sep, Text) ->
     {H1, T1} = Content(Text),
     {H2, T2} = Sep(T1),
@@ -279,6 +321,8 @@ sepby1(Content, Sep, Text) ->
     {bin_concat([H1, H2, H3]), T3}.
 
 %% matches a parser at least N times
+-spec manyN(pos_integer(), fun((binary()) -> {byte() | binary(), binary()}),
+            binary()) -> {binary(), binary()}.
 manyN(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
     {H1, T1} = count(N, P, X),
@@ -289,6 +333,8 @@ manyN(_, P, _) when not is_function(P) -> error({badarg, P});
 manyN(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
 %% matches a parser exactly N times
+-spec count(pos_integer(), fun((binary()) -> {byte() | binary(), binary()}),
+            binary()) -> {binary(), binary()}.
 count(N, _, X) when N =< 0 -> {<<>>, X};
 count(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
@@ -300,6 +346,9 @@ count(_, P, _) when not is_function(P) -> error({badarg, P});
 count(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
 %% match a parser at least N times, but no more than M times
+-spec manyNtoM(non_neg_integer(), pos_integer(),
+               fun((binary()) -> {byte() | binary(), binary()}),
+               binary()) -> {binary(), binary()}.
 manyNtoM(N, _, _, X) when N < 0 -> {<<>>, X};
 manyNtoM(N, M, _, X) when N > M -> {<<>>, X};
 manyNtoM(N, M, P, X) when N == M -> count(N, P, X);
@@ -318,6 +367,7 @@ manyNtoM(N, M, P, X) when is_integer(N) andalso is_integer(M) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% joins characters and binarys
+-spec bin_join(byte() | binary(), byte() | binary()) -> binary().
 bin_join(X, Y) when is_binary(X) andalso is_binary(Y) ->
     <<X/binary, Y/binary>>;
 bin_join(X, Y) when is_integer(X) andalso is_binary(Y) ->
@@ -327,4 +377,5 @@ bin_join(X, Y) when is_binary(X) andalso is_integer(Y) ->
 bin_join(X, Y) -> <<X, Y>>.
 
 %% joins a list of characters and binaries
+-spec bin_concat([byte() | binary()]) -> binary().
 bin_concat(L) -> lists:foldl(fun(X, Acc) -> bin_join(Acc, X) end, <<>>, L).
