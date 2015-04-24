@@ -9,8 +9,8 @@
          char/2, case_char/2, case_string/2, oneof/2,
 
          % parser combinators
-         many/2, many/3, many1/2, many1/3, option/3, option/4, either/6,
-         both/6, optional/3, between/5, between/4, until/2, tryparse/3,
+         many/2, many1/2, option/3, either/4,
+         both/4, optional/2, between/4, until/2, tryparse/3,
          orparse/3, choice/2, sepby/3, sepby1/3, manyN/3, count/3, manyNtoM/4,
 
          % type construction
@@ -29,12 +29,8 @@ to_lower(C) -> C.
 %% case sensitive character match
 -spec char(byte(), <<_:8,_:_*8>>) -> {byte(), binary()}.
 char(C, S) when is_binary(S) andalso is_integer(C) ->
-    try
-        <<C, T/binary>> = S,
-        {C, T}
-    catch
-        error:{badmatch, _} -> throw({parse_error, expected, C})
-    end;
+    <<C, T/binary>> = S,
+    {C, T};
 char(_, S) when not is_binary(S) -> error({badarg, S});
 char(C, _) -> error({badarg, C}).
 
@@ -50,7 +46,7 @@ case_char(C, _) when not is_integer(C) -> error({badarg, C});
 case_char(_, S) -> error({badarg, S}).
 
 %% case insensitive string match
--spec case_string(binary(), <<_:8,_:_*8>>) -> {binary(), binary()}.
+-spec case_string(binary(), binary()) -> {binary(), binary()}.
 case_string(<<>>, L) when is_binary(L) -> {<<>>, L};
 case_string(S, <<>>) when is_binary(S) ->
     throw({parse_error, expected, S});
@@ -87,121 +83,69 @@ oneof(_, Bin) -> error({badarg, Bin}).
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% match 0 of more times using F(A)
--spec many(fun((binary()) -> {byte() | binary(), binary()}), binary())
-      -> {binary(), binary()}.
+-spec many(fun((X) -> {Y, X}), X) -> {[Y], X}.
 many(F, A) ->
     try
         {X, Y} = F(A),
         {Acc, T} = many(F, Y),
-        {bin_join(X, Acc), T}
+        {[X|Acc], T}
     catch
-        {parse_error, expected, _} -> {<<>>, A};
-        error:{badmatch, <<>>} -> {<<>>, A}
-    end.
-
-%% match 0 or more times using apply_many
--spec many(atom(), atom(), binary()) -> {binary(), binary()}.
-many(M, F, A) ->
-    try
-        {X, Y} = apply_many(M, F, A),
-        {Acc, T} = many(M, F, Y),
-        {bin_join(X, Acc), T}
-    catch
-        {parse_error, expected, _} -> {<<>>, A};
-        error:{badmatch, <<>>}     -> {<<>>, A}
+        {parse_error, expected, _} -> {<<>>, A}
     end.
 
 %% match 1 or mote times using F(A)
--spec many1(fun((binary()) -> {byte() | binary(), binary()}), binary())
-      -> {binary(), binary()}.
+-spec many1(fun((X) -> {Y, X}), X) -> {[Y], X}.
 many1(F, A) ->
     {X, Y} = F(A),
     {Acc, T} = many(F, Y),
-    {bin_join(X, Acc), T}.
-
-%% match 1 or more times using apply_many
--spec many1(atom(), atom(), binary()) -> {binary(), binary()}.
-many1(M, F, A) ->
-    {X, Y} = apply_many(M, F, A),
-    {Acc, T} = many(M, F, Y),
-    {bin_join(X, Acc), T}.
+    {[X|Acc], T}.
 
 apply_many(M, F, A) when is_list(A) -> apply(M, F, A);
 apply_many(M, F, A) -> M:F(A).
 
 %% tries to match F(A) but if that fails will return {Def, A}
--spec option(any(), fun((binary()) -> {any(), binary()}), binary())
-      -> {any(), binary()}.
+-spec option(Y, fun((X) -> {Y, X}), X) -> {Y, X}.
 option(Def, F, A) ->
     try
         F(A)
     catch
-        {parse_error, expected, _} -> {Def, A};
-        error:{badmatch, _} -> {Def, A}
+        {parse_error, expected, _} -> {Def, A}
     end.
 
-
-%% tries to match M:F(A), but if that fails will return {Def, A}
--spec option(any(), atom(), atom(), binary() | [any()]) -> {any(), binary()}.
-option(Def, M, F, A) ->
-    try
-        apply_many(M, F, A)
-    catch
-        {parse_error, expected, _} -> {Def, A};
-        error:{badmatch, _} -> {Def, A}
-    end.
 
 %% tries to match one or the other, if both fail the error is thrown
--spec either(atom(), atom(), atom(), atom(), binary(), any())
-      -> {any(), binary()}.
-either(M1, F1, M2, F2, A, Err) ->
+-spec either(fun((X) -> {Y, X}), fun((X) -> {Z, X}), X, string())
+      -> {Y | Z, X}.
+either(F1, F2, A, Err) ->
     try
-        M1:F1(A)
+        F1(A)
     catch
-        {parse_error, expected, _} -> either_(M2, F2, A, Err);
-        error:{badmatch, _} -> either_(M2, F2, A, Err)
+        {parse_error, expected, _} -> either_(F2, A, Err)
     end.
 
--spec either_(atom(), atom(), binary(), any()) -> {any(), binary()}.
-either_(M, F, A, Err) ->
+-spec either_(fun((X) -> {Z, X}), X, string()) -> {Z, X}.
+either_(F, A, Err) ->
     try
-        M:F(A)
+        F(A)
     catch
-        {parse_error, expected, _} -> throw({parse_error, expected, Err});
-        error:{badmatch, _} -> throw({parse_error, expected, Err})
+        {parse_error, expected, _} -> throw({parse_error, expected, Err})
     end.
 
 % tries to match both, if either fail it throws a parse error with the given
 % message
--spec both(atom(), atom(), atom(), atom(), binary(), any())
-      -> {any(), binary()}.
-both(M1, F1, M2, F2, A, Err) ->
+-spec both(fun((X) -> {Y, X}), fun((X) -> {Z, X}), X, string()) -> {{Y, Z}, X}.
+both(F1, F2, A, Err) ->
     try
-        {H1, T1} = apply_many(M1, F1, A),
-        {H2, T2} = apply_many(M2, F2, T1),
-        {bin_join(H1, H2), T2}
+        {H1, T1} = F1(A),
+        {H2, T2} = F2(T1),
+        {{H1, H2}, T2}
     catch
-        {parse_error, expected, _} -> throw({parse_error, expected, Err});
-        error:{badmatch, _} -> throw({parse_error, expected, Err})
+        {parse_error, expected, _} -> throw({parse_error, expected, Err})
     end.
 
 %% tries to match M:F(A), if that fails returns {<<>>, A}
--spec optional(atom(), atom(), binary()) -> {any(), binary()}.
-optional(M, F, A) -> option(<<>>, M, F, A).
-
-%% tries to match using H, then will match as much as it can before T matches,
-%% the result of which will be passed to M:F
--spec between(fun((binary()) -> {any(), binary()}),
-              fun((binary()) -> {any(), binary}), atom(), atom(), binary())
-      -> {any(), binary()}.
-between(H, T, M, F, A) when is_function(H) andalso is_function(T) andalso
-                            is_binary(A) ->
-    {_, B1} = H(A),
-    {B2, Tail} = until(T, B1),
-    {M:F(B2), Tail};
-between(H, _, _, _, _) when not is_function(H) -> error({badarg, H});
-between(_, T, _, _, _) when not is_function(T) -> error({badarg, T});
-between(_, _, _, _, A) when not is_binary(A) -> error({badarg, A}).
+-spec optional(fun((X) -> {Y, X}), X) -> {Y | binary(), X}.
+optional(F, A) -> option(<<>>, F, A).
 
 %% tries to match using H, then will match as much as it can before T matches,
 %% the result of which will be passed to F
