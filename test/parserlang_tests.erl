@@ -125,129 +125,76 @@ case_string_test_() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 many_test_() ->
-    F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [%% many/3
-     ?_assertEqual({<<>>, <<>>},
-                   parserlang:many(parserlang_tests, test_parser, <<>>)),
-     ?_assertEqual({<<>>, <<"a">>},
-                   parserlang:many(parserlang_tests, test_parser, <<"a">>)),
-     ?_assertEqual({<<0,1>>, <<>>},
-                   parserlang:many(parserlang_tests, test_parser, <<0,1>>)),
-
-     %% to test apply_many w/list
-     ?_assertEqual({<<0,1>>, <<>>},
-                   parserlang:many(parserlang_tests, test_parser, [<<0,1>>])),
-
-     %% many/2
-     ?_assertEqual({<<>>, <<>>}, parserlang:many(F, <<>>)),
-     ?_assertEqual({<<>>, <<"a">>}, parserlang:many(F, <<"a">>)),
-     ?_assertEqual({<<0,1>>, <<>>}, parserlang:many(F, <<0, 1>>))
+    F = fun test_parser/1,
+    [?_assertEqual({[], <<>>}, parserlang:many(F, <<>>)),
+     ?_assertEqual({[], <<"a">>}, parserlang:many(F, <<"a">>)),
+     ?_assertEqual({[0,1], <<>>}, parserlang:many(F, <<0, 1>>))
     ].
 
 many1_test_() ->
-    F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [%% many1/3
-     ?_assertThrow({parse_error, expected, _},
-                   parserlang:many1(parserlang_tests, test_parser, <<"a">>)),
-     ?_assertEqual({<<0,1>>, <<>>},
-                   parserlang:many1(parserlang_tests, test_parser, <<0,1>>)),
-
-     %% many1/2
-     ?_assertThrow({parse_error, expected, _}, parserlang:many1(F, <<"a">>)),
-     ?_assertEqual({<<0,1>>, <<>>}, parserlang:many1(F, <<0,1>>))
+    F = fun test_parser/1,
+    [?_assertThrow({parse_error, expected, _}, parserlang:many1(F, <<"a">>)),
+     ?_assertEqual({[0], <<$a>>}, parserlang:many1(F, <<0, $a>>)),
+     ?_assertEqual({[0,1], <<>>}, parserlang:many1(F, <<0,1>>))
     ].
 
 option_test_() ->
     F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [%% option/4
-     ?_assertEqual({<<>>, <<"0">>}, parserlang:option(<<>>, parserlang_tests,
-                                                      test_parser, <<"0">>)),
-     ?_assertEqual({0, <<>>}, parserlang :option(<<>>, parserlang_tests,
-                                                 test_parser, <<0>>)),
-     ?_assertEqual({<<>>, <<>>}, parserlang:option(<<>>, parserlang_tests,
-                                                   test_parser, <<>>)),
-
-     %% option/3
-     ?_assertEqual({<<>>, <<"a">>}, parserlang:option(<<>>, F, <<"a">>)),
+    [?_assertEqual({<<>>, <<"a">>}, parserlang:option(<<>>, F, <<"a">>)),
      ?_assertEqual({0, <<>>}, parserlang:option(<<>>, F, <<0>>)),
      ?_assertEqual({<<>>, <<>>}, parserlang:option(<<>>, F, <<>>))
     ].
 
 either_test_() -> [ ?_assertEqual({0, <<>>},
-                                  parserlang:either(parserlang_tests,
-                                                    test_parser,
-                                                    parserlang_tests,
-                                                    test_parser2,
+                                  parserlang:either(fun test_parser/1,
+                                                    fun test_parser2/1,
                                                     <<0>>, "msg")),
                     ?_assertEqual({11, <<>>},
-                                  parserlang:either(parserlang_tests,
-                                                    test_parser,
-                                                    parserlang_tests,
-                                                    test_parser2,
+                                  parserlang:either(fun test_parser/1,
+                                                    fun test_parser2/1,
                                                     <<11>>, "msg")),
                     ?_assertThrow({parse_error, expected, "msg"},
-                                  parserlang:either(parserlang_tests,
-                                                    test_parser,
-                                                    parserlang_tests,
-                                                    test_parser2,
+                                  parserlang:either(fun test_parser/1,
+                                                    fun test_parser2/1,
                                                     <<"a">>, "msg")),
                     ?_assertThrow({parse_error, expected, "msg"},
-                                  parserlang:either(parserlang_tests,
-                                                    test_parser,
-                                                    parserlang_tests,
-                                                    test_parser2,
+                                  parserlang:either(fun test_parser/1,
+                                                    fun test_parser2/1,
                                                     <<>>, "msg"))
                   ].
 
 
 both_test_() -> [ ?_assertThrow({parse_error, expected, "msg"},
-                                parserlang:both(parserlang_tests, test_parser,
-                                                parserlang_tests, test_parser,
+                                parserlang:both(fun test_parser/1,
+                                                fun test_parser/1,
                                                 <<"a", 0>>, "msg")),
                   ?_assertThrow({parse_error, expected, "msg"},
-                                parserlang:both(parserlang_tests, test_parser,
-                                                parserlang_tests, test_parser,
+                                parserlang:both(fun test_parser/1,
+                                                fun test_parser/1,
                                                 <<0, "a">>, "msg")),
                   ?_assertThrow({parse_error, expected, "msg"},
-                                parserlang:both(parserlang_tests, test_parser,
-                                                parserlang_tests, test_parser,
+                                parserlang:both(fun test_parser/1,
+                                                fun test_parser/1,
                                                 <<>>, "msg")),
-                  ?_assertEqual({<<0,1>>, <<>>},
-                                parserlang:both(parserlang_tests, test_parser,
-                                                parserlang_tests, test_parser,
+                  ?_assertEqual({{0,1}, <<>>},
+                                parserlang:both(fun test_parser/1,
+                                                fun test_parser/1,
                                                 <<0, 1>>, "msg"))
                 ].
 
 optional_test_() -> [ ?_assertEqual({<<>>, <<"a">>},
-                                    parserlang:optional(parserlang_tests,
-                                                        test_parser,
+                                    parserlang:optional(fun test_parser/1,
                                                         <<"a">>)),
                       ?_assertEqual({0, <<>>},
-                                    parserlang:optional(parserlang_tests,
-                                                        test_parser,
+                                    parserlang:optional(fun test_parser/1,
                                                         <<0>>))
                     ].
 
 between_test_() ->
     HF = fun(X) -> parserlang:case_string(<<"a">>, X) end,
     TF = match_fun(<<"|">>),
-    BC = fun(X) -> binary:copy(X) end,
-    % between/5
-    [ ?_assertEqual({<<"bc">>, <<"xyz">>},
-                    parserlang:between(HF, TF, binary, copy, <<"abc|xyz">>)),
-      ?_assertThrow({parse_error, expected, <<"a">>},
-                    parserlang:between(HF, TF, binary, copy, <<"bc|xyz">>)),
-      ?_assertThrow({parse_error, expected, <<"|">>},
-                    parserlang:between(HF, TF, binary, copy, <<"abcxyz">>)),
-      ?_assertError({badarg, a},
-                    parserlang:between(a, TF, binary, copy, <<>>)),
-      ?_assertError({badarg, a},
-                    parserlang:between(HF, a, binary, copy, <<>>)),
-      ?_assertError({badarg, a},
-                    parserlang:between(HF, TF, binary, copy, a)),
-
-    % between/4
-     ?_assertEqual({<<"bc">>, <<"xyz">>},
+    BC = fun binary:copy/1,
+    [?_assertEqual({<<"bc">>, <<"xyz">>},
                    parserlang:between(HF, TF, BC, <<"abc|xyz">>)),
      ?_assertThrow({parse_error, expected, <<"a">>},
                    parserlang:between(HF, TF, BC, <<"bc|xyz">>)),
@@ -270,22 +217,19 @@ until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
                  ].
 
 tryparse_test_() -> [ ?_assertEqual({0, <<>>},
-                                    parserlang:tryparse(parserlang_tests,
-                                                        test_parser,
+                                    parserlang:tryparse(fun test_parser/1,
                                                         <<0>>)),
                       ?_assertEqual({<<>>, <<11>>},
-                                    parserlang:tryparse(parserlang_tests,
-                                                        test_parser,
+                                    parserlang:tryparse(fun test_parser/1,
                                                         <<11>>)),
                       ?_assertEqual({<<>>, <<>>},
-                                    parserlang:tryparse(parserlang_tests,
-                                                        test_parser,
+                                    parserlang:tryparse(fun test_parser/1,
                                                         <<>>))
                     ].
 
 orparse_test_() ->
-    F1 = fun(X) -> parserlang_tests:test_parser(X) end,
-    F2 = fun(X) -> parserlang_tests:test_parser2(X) end,
+    F1 = fun test_parser/1,
+    F2 = fun test_parser2/1,
     [ ?_assertEqual({11, <<>>},
                     parserlang:orparse([{parserlang_tests, test_parser},
                                         {parserlang_tests, test_parser2}],
@@ -311,9 +255,8 @@ orparse_test_() ->
     ].
 
 choice_test_() ->
-    C = parserlang:choice([ fun(X) -> parserlang_tests:test_parser(X) end,
-                            fun(X) -> parserlang_tests:test_parser2(X) end
-                          ], "char between 0 and 20"),
+    C = parserlang:choice([ fun test_parser/1, fun test_parser2/1 ],
+                          "char between 0 and 20"),
     [ ?_assertEqual({11, <<>>}, C(<<11>>)),
       ?_assertThrow({parse_error, expected, "char between 0 and 20"},
                     C(<<21>>)),
@@ -322,30 +265,29 @@ choice_test_() ->
     ].
 
 sepby_test_() ->
-    F1 = fun(X) -> parserlang_tests:test_parser(X) end,
-    F2 = fun(X) -> parserlang_tests:test_parser2(X) end,
-    [ ?_assertEqual({<<1,11,1>>, <<>>},
+    F1 = fun test_parser/1,
+    F2 = fun test_parser2/1,
+    [ ?_assertEqual({[1,1], <<>>},
                     parserlang:sepby(F1, F2, <<1, 11, 1>>)),
-      ?_assertEqual({<<>>, <<21>>},
+      ?_assertEqual({[], <<21>>},
                     parserlang:sepby(F1, F2, <<21>>)),
-      ?_assertEqual({<<>>, <<>>},
+      ?_assertEqual({[], <<>>},
                     parserlang:sepby(F1, F2, <<>>)),
-      ?_assertEqual({<<10>>, <<21>>},
+      ?_assertEqual({[10], <<21>>},
                     parserlang:sepby(F1, F2, <<10, 21>>))
     ].
 
 sepby1_test_() ->
-    F1 = fun(X) -> parserlang_tests:test_parser(X) end,
-    F2 = fun(X) -> parserlang_tests:test_parser2(X) end,
-    [ ?_assertEqual({<<1,11,1>>, <<>>},
-                    parserlang:sepby1(F1, F2, <<1,11,1>>))
+    F1 = fun test_parser/1,
+    F2 = fun test_parser2/1,
+    [ ?_assertEqual({[1,1], <<>>}, parserlang:sepby1(F1, F2, <<1,11,1>>))
     ].
 
 count_test_() ->
-    F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [ ?_assertEqual({<<1,2,3>>, <<>>},
+    F = fun test_parser/1,
+    [ ?_assertEqual({[1,2,3], <<>>},
                     parserlang:count(3, F, <<1,2,3>>)),
-      ?_assertEqual({<<1,2>>, <<3>>},
+      ?_assertEqual({[1,2], <<3>>},
                     parserlang:count(2, F, <<1,2,3>>)),
       ?_assertError({badarg, a}, parserlang:count(a, a, a)),
       ?_assertError({badarg, a}, parserlang:count(2, a, a)),
@@ -353,10 +295,10 @@ count_test_() ->
     ].
 
 manyN_test_() ->
-    F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [ ?_assertEqual({<<1,2,3>>, <<>>},
+    F = fun test_parser/1,
+    [ ?_assertEqual({[1,2,3], <<>>},
                     parserlang:manyN(3, F, <<1,2,3>>)),
-      ?_assertEqual({<<1,2,3>>, <<>>},
+      ?_assertEqual({[1,2,3], <<>>},
                     parserlang:manyN(2, F, <<1,2,3>>)),
       ?_assertError({badarg, a}, parserlang:manyN(a, a, a)),
       ?_assertError({badarg, a}, parserlang:manyN(2, a, a)),
@@ -364,14 +306,14 @@ manyN_test_() ->
     ].
 
 manyNtoM_test_() ->
-    F = fun(X) -> parserlang_tests:test_parser(X) end,
-    [ ?_assertEqual({<<1,2,3>>, <<>>},
+    F = fun test_parser/1,
+    [ ?_assertEqual({[1,2,3], <<>>},
                     parserlang:manyNtoM(2, 4, F, <<1,2,3>>)),
-      ?_assertEqual({<<1,2,3,4>>, <<5>>},
+      ?_assertEqual({[1,2,3,4], <<5>>},
                     parserlang:manyNtoM(2, 4, F, <<1,2,3,4,5>>)),
-      ?_assertEqual({<<>>, <<>>}, parserlang:manyNtoM(-1, 4, F, <<>>)),
-      ?_assertEqual({<<>>, <<>>}, parserlang:manyNtoM(4, 0, F, <<>>)),
-      ?_assertEqual({<<0,1,2>>, <<>>},
+      ?_assertEqual({[], <<>>}, parserlang:manyNtoM(-1, 4, F, <<>>)),
+      ?_assertEqual({[], <<>>}, parserlang:manyNtoM(4, 0, F, <<>>)),
+      ?_assertEqual({[0,1,2], <<>>},
                     parserlang:manyNtoM(3, 3, F, <<0,1,2>>))
     ].
 

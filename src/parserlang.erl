@@ -10,7 +10,7 @@
 
          % parser combinators
          many/2, many1/2, option/3, either/4,
-         both/4, optional/2, between/4, until/2, tryparse/3,
+         both/4, optional/2, between/4, until/2, tryparse/2,
          orparse/3, choice/2, sepby/3, sepby1/3, manyN/3, count/3, manyNtoM/4,
 
          % type construction
@@ -29,8 +29,12 @@ to_lower(C) -> C.
 %% case sensitive character match
 -spec char(byte(), <<_:8,_:_*8>>) -> {byte(), binary()}.
 char(C, S) when is_binary(S) andalso is_integer(C) ->
-    <<C, T/binary>> = S,
-    {C, T};
+    try
+        <<C, T/binary>> = S,
+        {C, T}
+    catch
+        error:{badmatch, _} -> throw({parse_error, expected, C})
+    end;
 char(_, S) when not is_binary(S) -> error({badarg, S});
 char(C, _) -> error({badarg, C}).
 
@@ -90,7 +94,8 @@ many(F, A) ->
         {Acc, T} = many(F, Y),
         {[X|Acc], T}
     catch
-        {parse_error, expected, _} -> {<<>>, A}
+        {parse_error, expected, _} -> {[], A};
+        error:{badmatch, _} -> {[], A}
     end.
 
 %% match 1 or mote times using F(A)
@@ -100,16 +105,14 @@ many1(F, A) ->
     {Acc, T} = many(F, Y),
     {[X|Acc], T}.
 
-apply_many(M, F, A) when is_list(A) -> apply(M, F, A);
-apply_many(M, F, A) -> M:F(A).
-
 %% tries to match F(A) but if that fails will return {Def, A}
 -spec option(Y, fun((X) -> {Y, X}), X) -> {Y, X}.
 option(Def, F, A) ->
     try
         F(A)
     catch
-        {parse_error, expected, _} -> {Def, A}
+        {parse_error, expected, _} -> {Def, A};
+        error:{badmatch, _} -> {Def, A}
     end.
 
 
@@ -120,7 +123,8 @@ either(F1, F2, A, Err) ->
     try
         F1(A)
     catch
-        {parse_error, expected, _} -> either_(F2, A, Err)
+        {parse_error, expected, _} -> either_(F2, A, Err);
+        error:{badmatch, _} -> either_(F2, A, Err)
     end.
 
 -spec either_(fun((X) -> {Z, X}), X, string()) -> {Z, X}.
@@ -128,7 +132,8 @@ either_(F, A, Err) ->
     try
         F(A)
     catch
-        {parse_error, expected, _} -> throw({parse_error, expected, Err})
+        {parse_error, expected, _} -> throw({parse_error, expected, Err});
+        error:{badmatch, _} -> throw({parse_error, expected, Err})
     end.
 
 % tries to match both, if either fail it throws a parse error with the given
@@ -140,7 +145,8 @@ both(F1, F2, A, Err) ->
         {H2, T2} = F2(T1),
         {{H1, H2}, T2}
     catch
-        {parse_error, expected, _} -> throw({parse_error, expected, Err})
+        {parse_error, expected, _} -> throw({parse_error, expected, Err});
+        error:{badmatch, _} -> throw({parse_error, expected, Err})
     end.
 
 %% tries to match M:F(A), if that fails returns {<<>>, A}
@@ -184,10 +190,11 @@ until(_, B) when not is_binary(B) -> error({badarg, B}).
 %% try attempts to match using the given parser, if it fails the empty
 %% binary will be returned as the head and the tail will be the binary
 %% that was originally passed in
--spec tryparse(atom(), atom(), binary()) -> {any(), binary()}.
-tryparse(M, F, A) ->
+-spec tryparse(fun((binary()) -> {any(), binary()}), binary)
+      -> {any(), binary()}.
+tryparse(F, A) ->
     try
-        apply_many(M, F, A)
+        F(A)
     catch
         {parse_error, expected, _} -> {<<>>, A};
         error:{badmatch, _} -> {<<>>, A}
@@ -235,66 +242,66 @@ choice_(B, [H|T], Err) ->
 %% takes a function to match content and another to match seperator and
 %% text to match, will return any number of text interspersed with
 %% the seperator
--spec sepby(fun((binary()) -> {byte() | binary(), binary()}),
-            fun((binary()) -> {byte() | binary(), binary()}),
-            binary()) -> {binary(), binary()}.
+-spec sepby(fun((binary()) -> {X, binary()}),
+            fun((binary()) -> {any(), binary()}),
+            binary()) -> {[X], binary()}.
 sepby(Content, Sep, Text) ->
     try
         {H1, T1} = Content(Text),
         try
-            {H2, T2} = Sep(T1),
+            {_, T2} = Sep(T1),
             {H3, T3} = sepby(Content, Sep, T2),
-            {bin_concat([H1, H2, H3]), T3}
+            {[H1|H3], T3}
         catch
-            {parse_error, expected, _} -> {bin_concat([H1]), T1};
-            error:{badmatch, _} -> {bin_concat([H1]), T1}
+            {parse_error, expected, _} -> {[H1], T1};
+            error:{badmatch, _} -> {[H1], T1}
         end
     catch
-        {parse_error, expected, _} -> {<<>>, Text};
-        error:{badmatch, _} -> {<<>>, Text}
+        {parse_error, expected, _} -> {[], Text};
+        error:{badmatch, _} -> {[], Text}
     end.
 
 %% same as sepby/3 but matches at least once
--spec sepby1(fun((binary()) -> {byte() | binary(), binary()}),
-             fun((binary()) -> {byte() | binary(), binary()}),
-             binary()) -> {binary(), binary()}.
+-spec sepby1(fun((binary()) -> {X, binary()}),
+             fun((binary()) -> {any(), binary()}),
+             binary()) -> {[X, ...], binary()}.
 sepby1(Content, Sep, Text) ->
     {H1, T1} = Content(Text),
-    {H2, T2} = Sep(T1),
+    {_, T2} = Sep(T1),
     {H3, T3} = sepby(Content, Sep, T2),
-    {bin_concat([H1, H2, H3]), T3}.
+    {[H1|H3], T3}.
 
 %% matches a parser at least N times
--spec manyN(pos_integer(), fun((binary()) -> {byte() | binary(), binary()}),
-            binary()) -> {binary(), binary()}.
+-spec manyN(non_neg_integer(), fun((binary()) -> {X, binary()}),
+            binary()) -> {[X], binary()}.
 manyN(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
     {H1, T1} = count(N, P, X),
     {H2, T2} = many(P, T1),
-    {bin_join(H1, H2), T2};
+    {H1 ++ H2, T2};
 manyN(N, _, _) when not is_integer(N) -> error({badarg, N});
 manyN(_, P, _) when not is_function(P) -> error({badarg, P});
 manyN(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
 %% matches a parser exactly N times
--spec count(pos_integer(), fun((binary()) -> {byte() | binary(), binary()}),
-            binary()) -> {binary(), binary()}.
-count(N, _, X) when N =< 0 -> {<<>>, X};
+-spec count(non_neg_integer(), fun((binary()) -> {X, binary()}),
+            binary()) -> {[X], binary()}.
+count(N, _, X) when N =< 0 -> {[], X};
 count(N, P, X) when is_integer(N) andalso is_function(P) andalso
                     is_binary(X) ->
     {H1, T1} = P(X),
     {H2, T2} = count(N-1, P, T1),
-    {bin_join(H1, H2), T2};
+    {[H1|H2], T2};
 count(N, _, _) when not is_integer(N) -> error({badarg, N});
 count(_, P, _) when not is_function(P) -> error({badarg, P});
 count(_, _, X) when not is_binary(X) -> error({badarg, X}).
 
 %% match a parser at least N times, but no more than M times
--spec manyNtoM(non_neg_integer(), pos_integer(),
-               fun((binary()) -> {byte() | binary(), binary()}),
-               binary()) -> {binary(), binary()}.
-manyNtoM(N, _, _, X) when N < 0 -> {<<>>, X};
-manyNtoM(N, M, _, X) when N > M -> {<<>>, X};
+-spec manyNtoM(non_neg_integer(), non_neg_integer(),
+               fun((binary()) -> {X, binary()}),
+               binary()) -> {[X], binary()}.
+manyNtoM(N, _, _, X) when N < 0 -> {[], X};
+manyNtoM(N, M, _, X) when N > M -> {[], X};
 manyNtoM(N, M, P, X) when N == M -> count(N, P, X);
 manyNtoM(N, M, P, X) when N == 0 ->
     MkFunc = fun(Y) -> fun(Z) -> count(Y, P, Z) end end,
@@ -303,7 +310,7 @@ manyNtoM(N, M, P, X) when N == 0 ->
 manyNtoM(N, M, P, X) when is_integer(N) andalso is_integer(M) ->
     {H1, T1} = count(N, P, X),
     {H2, T2} = manyNtoM(0, M-N, P, T1),
-    {bin_join(H1, H2), T2}.
+    {H1 ++ H2, T2}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
