@@ -6,7 +6,7 @@
 
 -module(parserlang).
 -export([% generic parsers
-         char/2, case_char/2, case_string/2, oneof/2,
+         char/2, case_char/2, case_string/2, oneof/2, word/1, string/2,
 
          % parser combinators
          many/2, many1/2, option/3, either/4,
@@ -81,6 +81,41 @@ oneof(List, Bin) when is_binary(List) andalso is_binary(Bin) ->
     end;
 oneof(List, _) when not is_binary(List) -> error({badarg, List});
 oneof(_, Bin) -> error({badarg, Bin}).
+
+%% tries to match any non-whitespace characters
+-spec word(<<_:8,_:_*8>>) -> {binary(), binary()}.
+word(X) when is_binary(X) ->
+    try
+        <<H, T/binary>> = X,
+        if H == $\t orelse H == $  orelse
+           H == $\r orelse H == $\n -> {<<>>, X};
+           true ->
+               {RH, RT} = word(T),
+               {<<H, RH/binary>>, RT}
+        end
+    catch
+        error:{badmatch, _} -> {<<>>, <<>>}
+    end;
+word(X) -> error({badarg, X}).
+
+%% tries to do a case sensitive string compare
+-spec string(binary(), binary()) -> {binary(), binary()}.
+string(<<>>, T) when is_binary(T) -> {<<>>, T};
+string(S, <<>>) when is_binary(S) -> throw({parse_error, expected, S});
+string(S, L) when is_binary(S) andalso is_binary(L) ->
+    <<SH, ST/binary>> = S,
+    try
+        {LH, LT} = char(SH, L),
+        {RH, RT} = string(ST, LT),
+        {<<LH,RH/binary>>, RT}
+    catch
+        {parse_error, expected, SH} ->
+            throw({parse_error, expected, S});
+        {parse_error, expected, NT} ->
+            throw({parse_error, expected, NT})
+    end;
+string(S, _) when not is_binary(S) -> error({badarg, S});
+string(_, L) when not is_binary(L) -> error({badarg, L}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%

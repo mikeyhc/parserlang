@@ -120,6 +120,30 @@ case_string_test_() ->
         nonbinary_typeset())
     ].
 
+% test word matches
+word_test_() ->
+    [ ?_assertEqual({<<"abc">>, <<>>}, parserlang:word(<<"abc">>)),
+      ?_assertEqual({<<"abc">>, <<" ">>}, parserlang:word(<<"abc ">>)),
+      ?_assertEqual({<<>>, <<" abc">>}, parserlang:word(<<" abc">>)),
+      ?_assertEqual({<<>>, <<>>}, parserlang:word(<<>>)),
+      ?_assertError({badarg, a}, parserlang:word(a))
+    ].
+
+% test string matches
+string_test_() ->
+    [ ?_assertEqual({<<"abc">>, <<>>},
+                    parserlang:string(<<"abc">>, <<"abc">>)),
+      ?_assertEqual({<<"abc">>, <<"d">>},
+                    parserlang:string(<<"abc">>, <<"abcd">>)),
+      ?_assertThrow({parse_error, expected, <<"D">>},
+                    parserlang:string(<<"abcD">>, <<"abcd">>)),
+      ?_assertThrow({parse_error, expected, <<"D">>},
+                    parserlang:string(<<"abcD">>, <<"abc">>)),
+      ?_assertError({badarg, a}, parserlang:string(a, <<>>)),
+      ?_assertError({badarg, a}, parserlang:string(<<>>, a))
+    ].
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Parser Combinators %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%
