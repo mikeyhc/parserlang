@@ -120,15 +120,6 @@ case_string_test_() ->
         nonbinary_typeset())
     ].
 
-% test word matches
-word_test_() ->
-    [ ?_assertEqual({<<"abc">>, <<>>}, parserlang:word(<<"abc">>)),
-      ?_assertEqual({<<"abc">>, <<" ">>}, parserlang:word(<<"abc ">>)),
-      ?_assertEqual({<<>>, <<" abc">>}, parserlang:word(<<" abc">>)),
-      ?_assertEqual({<<>>, <<>>}, parserlang:word(<<>>)),
-      ?_assertError({badarg, a}, parserlang:word(a))
-    ].
-
 % test string matches
 string_test_() ->
     [ ?_assertEqual({<<"abc">>, <<>>},
