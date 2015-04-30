@@ -325,7 +325,11 @@ manyNtoM(N, M, P, X) when N == M -> count(N, P, X);
 manyNtoM(N, M, P, X) when N == 0 ->
     MkFunc = fun(Y) -> fun(Z) -> count(Y, P, Z) end end,
     List = lists:map(MkFunc, lists:seq(M, 1, -1)),
-    orparse(List, X, "manyNtoM failed");
+    try
+        orparse(List, X, "manyNtoM failed")
+    catch
+        {parse_error, expected, _} -> {[], X}
+    end;
 manyNtoM(N, M, P, X) when is_integer(N) andalso is_integer(M) ->
     {H1, T1} = count(N, P, X),
     {H2, T2} = manyNtoM(0, M-N, P, T1),

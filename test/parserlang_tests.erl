@@ -329,7 +329,11 @@ manyNtoM_test_() ->
       ?_assertEqual({[], <<>>}, parserlang:manyNtoM(-1, 4, F, <<>>)),
       ?_assertEqual({[], <<>>}, parserlang:manyNtoM(4, 0, F, <<>>)),
       ?_assertEqual({[0,1,2], <<>>},
-                    parserlang:manyNtoM(3, 3, F, <<0,1,2>>))
+                    parserlang:manyNtoM(3, 3, F, <<0,1,2>>)),
+      ?_assertEqual({[1], <<>>},
+                    parserlang:manyNtoM(1, 2, F, <<1>>)),
+      ?_assertEqual({[1], <<12>>},
+                    parserlang:manyNtoM(1, 2, F, <<1,12>>))
     ].
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
