@@ -208,7 +208,7 @@ optional_test_() -> [ ?_assertEqual({<<>>, <<"a">>},
 between_test_() ->
     HF = fun(X) -> parserlang:case_string(<<"a">>, X) end,
     TF = match_fun(<<"|">>),
-    BC = fun binary:copy/1,
+    BC = fun(X) -> parserlang:case_string(<<"bc">>, X) end,
     [?_assertEqual({<<"bc">>, <<"xyz">>},
                    parserlang:between(HF, TF, BC, <<"abc|xyz">>)),
      ?_assertThrow({parse_error, expected, <<"a">>},

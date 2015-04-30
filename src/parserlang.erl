@@ -181,8 +181,9 @@ optional(F, A) -> option(<<>>, F, A).
 between(H, T, F, A) when is_function(H) andalso is_function(T) andalso
                          is_function(F) ->
     {_, B1} = H(A),
-    {B2, Tail} = until(T, B1),
-    {F(B2), Tail};
+    {R, B2} = F(B1),
+    {_, B3} = until(T, B2),
+    {R, B3};
 between(H, _, _, _) when not is_function(H) -> error({badarg, H});
 between(_, T, _, _) when not is_function(T) -> error({badarg, T});
 between(_, _, F, _) when not is_function(F) -> error({badarg, F}).
