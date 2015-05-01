@@ -223,6 +223,12 @@ between_test_() ->
 until_test_() -> [ ?_assertEqual({<<"abc">>, <<"xyz">>},
                                  parserlang:until(match_fun(<<"|">>),
                                                   <<"abc|xyz">>)),
+                   ?_assertEqual({$a, <<"bc">>},
+                                 parserlang:until(
+                                   fun(Y) ->
+                                           <<H,T/binary>> = Y,
+                                           {H, T}
+                                   end, <<"abc">>)),
                    ?_assertThrow({parse_error, expected, <<"|">>},
                                  parserlang:until(match_fun(<<"|">>),
                                                   <<"abcxyz">>)),

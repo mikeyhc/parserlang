@@ -202,7 +202,8 @@ until(T, B) when is_function(T) andalso is_binary(B) ->
         nomatch ->
             <<H, Temp/binary>> = B,
             {Rest, Tail} = until(T, Temp),
-            {<<H, Rest/binary>>, Tail}
+            {<<H, Rest/binary>>, Tail};
+        {X, Y} -> {X, Y}
     end;
 until(T, _) when not is_function(T) -> error({badarg, T});
 until(_, B) when not is_binary(B) -> error({badarg, B}).
