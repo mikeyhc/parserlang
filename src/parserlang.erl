@@ -33,7 +33,7 @@ char(C, S) when is_binary(S) andalso is_integer(C) ->
         <<C, T/binary>> = S,
         {C, T}
     catch
-        error:{badmatch, _} -> throw({parse_error, expected, C})
+        error:{badmatch, _} -> throw({parse_error, expected, [C]})
     end;
 char(_, S) when not is_binary(S) -> error({badarg, S});
 char(C, _) -> error({badarg, C}).
@@ -44,7 +44,7 @@ case_char(C, S) when is_binary(S) andalso is_integer(C) ->
     <<H, T/binary>> = S,
     case to_lower(H) == to_lower(C) of
         true -> {H,T};
-        false -> throw({parse_error, expected, C})
+        false -> throw({parse_error, expected, [C]})
     end;
 case_char(C, _) when not is_integer(C) -> error({badarg, C});
 case_char(_, S) -> error({badarg, S}).
