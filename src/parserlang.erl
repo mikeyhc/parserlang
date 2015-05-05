@@ -61,7 +61,7 @@ case_string(S, L) when is_binary(L) andalso is_binary(S) ->
         {RH, RT} = case_string(ST, LT),
         {<<LH,RH/binary>>, RT}
     catch
-        {parse_error, expected, SH} ->
+        {parse_error, expected, [SH]} ->
             throw({parse_error, expected, S});
         {parse_error, expected, NT} ->
             throw({parse_error, expected, NT})
@@ -93,7 +93,7 @@ string(S, L) when is_binary(S) andalso is_binary(L) ->
         {RH, RT} = string(ST, LT),
         {<<LH,RH/binary>>, RT}
     catch
-        {parse_error, expected, SH} ->
+        {parse_error, expected, [SH]} ->
             throw({parse_error, expected, S});
         {parse_error, expected, NT} ->
             throw({parse_error, expected, NT})
