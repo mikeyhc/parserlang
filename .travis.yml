@@ -1,2 +1,11 @@
-language: erlang
-sudo: false
+sudo: required
+
+services:
+  - docker
+
+before_install:
+- docker pull galiz/container
+
+script:
+- docker run -t galiz/container $(nproc)
+
