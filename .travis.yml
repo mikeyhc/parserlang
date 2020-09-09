@@ -1,6 +1,6 @@
 language: erlang
 sudo: false
-otp_release: 19
+otp_release: 20.0
 install:
   - wget https://s3.amazonaws.com/rebar3/rebar3
   - chmod +x rebar3
