@@ -7,4 +7,3 @@ install:
 script:
   - ./rebar3 version
   - ./rebar3 as test dialyzer, xref, ct, cover, coveralls send
-  - ./rebar3 release
